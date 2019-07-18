@@ -81,7 +81,10 @@ class IntervalReading:
 
         self.DF['start_date'] = [s.date() for s in self.DF.start]
 
-        for day in list(set(self.DF.start_date)):
+        dates = list(set(self.DF.start_date))
+        dates.sort()
+
+        for day in dates:
             yield (self.DF[self.DF.start_date == day])
 
         return
