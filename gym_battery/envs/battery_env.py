@@ -99,7 +99,7 @@ class BatteryEnv(gym.Env):
 
         fpath = fdir + fname
 
-        self.bus.add_battery(Battery(capacity=10000, power=2000))
+        self.bus.add_battery(Battery(capacity=10000, power=1000))
         self.set_load(fpath)
         self.fit_load_to_space()
 
@@ -117,8 +117,9 @@ class BatteryEnv(gym.Env):
         self.observation_space = gym.spaces.Box(np.array([0, 0, min_load, min_load]),
                                                   np.array([24, battery_capacity, max_load, max_load+battery_power]))
 
-        num_as = self._N_actions
-        action_values = (np.arange(num_as)-round(num_as/2, 0)) / round(num_as/2) * self.bus.battery.power
+        assert self.action_space.n %2 == 1
+        num_as = self.action_space.n
+        action_values = (np.arange(num_as) - ((num_as-1)/2))/((num_as-1)/2) * self.bus.battery.power
         self.action_mapping = dict(zip(np.arange(num_as), action_values))
 
     def step(self, action):
