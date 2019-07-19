@@ -12,6 +12,8 @@ from gym_battery.envs.env_assets.IntervalReading import IntervalReading
 
 import numpy as np
 
+import pkg_resources
+
 def empty_generator():
     yield from ()
 
@@ -87,13 +89,16 @@ class BatteryEnv(gym.Env):
     def set_standard_system(self):
         '''This method establishes the basic system used for the project, based on the A10S Med Business Large Usage
         load profile, and with a 10,000kWh, 2000kW battery.'''
-        from pathlib import Path
+
+        import os
 
         # Point a Path object at the GreenButton data
-        fdir = Path().absolute()
+        fdir = os.path.normpath(os.path.dirname(__file__)) + "\\env_assets\\resources\\"
         fname = "pge_electric_interval_data_2011-03-06_to_2012-04-06 A10S Med Business Large Usage.xml"
-        fpath = fdir / "batterydispatch" / "resources" / fname
         # fname = "pge_electric_interval_data_2011-03-06_to_2012-04-06 A10S Med Business Heavy Usage.xml"
+
+        fpath = fdir + fname
+
         self.bus.add_battery(Battery(capacity=10000, power=2000))
         self.set_load(fpath)
         self.fit_load_to_space()
