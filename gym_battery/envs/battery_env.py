@@ -205,7 +205,7 @@ class BatteryEnv(gym.Env):
                                max(self.observation_space.low[3], 0)])
 
         # Set the bus battery charge based on the initial state
-        self.bus.battery.charge = self.state[2]
+        self.bus.battery.charge = self.state[1]
 
         # Set the episode type if it has been provided to be changed:
         if episode_type is not None:
