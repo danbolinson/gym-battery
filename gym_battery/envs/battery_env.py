@@ -79,7 +79,7 @@ class BatteryEnv(gym.Env):
         self.run_N_episodes = None
 
         # When the episode is over, this defines what is returned as the 'state' following action A from state S.
-        self.terminal_state = 'terminal'
+        self.terminal_state = np.array([0,0,0,0])
 
         self.verbose = False
 
@@ -183,11 +183,12 @@ class BatteryEnv(gym.Env):
             energy_charge = self.tariff.calculate_energy_charge(self.grid_flow, 'net_flow') * \
                             (1 if 'month' in self.episode_type else 30)
             reward -= (demand_charge + energy_charge)
-            return (self.terminal_state, reward, episode_over, {})
+            self.state[-1] = demand
+            return (self.state, reward, episode_over, {})
 
 
 
-    def reset(self, episode_type = None, random_charge = True):
+    def reset(self, episode_type = None, random_charge = False):
         '''Reset the environment to start a new episode.
         Takes: a new episode_type, if the episode_type should change, and whether to initialize with a random state of
         charge or 0. '''
