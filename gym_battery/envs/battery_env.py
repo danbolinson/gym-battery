@@ -83,17 +83,19 @@ class BatteryEnv(gym.Env):
 
         self.verbose = False
 
-        # Set up the standard system - for testing.
-        print("setting the standard system, A10S Med busines large usage with a 2,000kW/10,000kWh battery")
+
 
     def set_standard_system(self):
         '''This method establishes the basic system used for the project, based on the A10S Med Business Large Usage
         load profile, and with a 10,000kWh, 2000kW battery.'''
 
         import os
+        # Set up the standard system - for testing.
+        print("setting the standard system, A10S Med busines large usage with a 2,000kW/10,000kWh battery")
 
         # Point a Path object at the GreenButton data
-        fdir = os.path.normpath(os.path.dirname(__file__)).join(["env_assets", "resources"])
+        fdir = os.path.normpath(os.path.dirname(__file__))
+        fdir = os.path.join(fdir, "env_assets", 'resources',"")
         fname = "pge_electric_interval_data_2011-03-06_to_2012-04-06 A10S Med Business Large Usage.xml"
         # fname = "pge_electric_interval_data_2011-03-06_to_2012-04-06 A10S Med Business Heavy Usage.xml"
 
