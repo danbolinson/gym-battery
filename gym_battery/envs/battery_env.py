@@ -15,6 +15,7 @@ import numpy as np
 import pkg_resources
 
 def empty_generator():
+    # Just an empty generator that will return StopIterationError on next(empty_generator).
     yield from ()
 
 class BatteryEnv(gym.Env):
@@ -24,7 +25,7 @@ class BatteryEnv(gym.Env):
 
     The state space is [hour of the day, state of charge, load, and current demand], and is defined as a Box space.
 
-    The action space is discreate, with N possible actions. Per gym convension, the Discrete mapping is index values;
+    The action space is discrete, with N possible actions. Per gym convention, the Discrete mapping is index values;
     the actual battery instructions are interpreted by action_mapping.
 
     The same day/month can be repeated, if first_ is set as the type. This allows agents to rapidly learn but

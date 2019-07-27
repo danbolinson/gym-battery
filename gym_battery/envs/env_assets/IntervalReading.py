@@ -17,36 +17,46 @@ class IntervalReading:
             self.xml = xml.etree.ElementTree.ElementTree(file=green_button_xml_file)
             self.initialize(self.xml)
 
-    def initialize(self, etree):
+    def initialize(self, etree_or_dataframe, default_duration_s=900):
         '''Converts the xml file into a dataframe and formats the values and dates appropriately.'''
-        root = etree.getroot()
-        iblock = root[7][2][0]
-        for i in iblock[0]:
-            if 'duration' in i.tag:
-                self.duration = i.text
-            elif 'start' in i.tag:
-                self.start = i.text
+        if type(etree_or_dataframe) is pd.DataFrame:
+            self.DF = etree_or_dataframe
+        else:
+            # we assume etree is a valid file path to or is a element tree object
+            root = etree_or_dataframe.getroot()
+            iblock = root[7][2][0]
+            for i in iblock[0]:
+                if 'duration' in i.tag:
+                    self.duration = i.text
+                elif 'start' in i.tag:
+                    self.start = i.text
 
-        namespace = iblock.tag[0:iblock.tag.find('}') + 1]
-        readings = {}
-        for ix, block in enumerate(iblock.findall(namespace + 'IntervalReading')):
-            readings[ix] = {}
-            for data in block:
-                if 'timePeriod' in data.tag:
-                    for t in data:
-                        if 'duration' in t.tag:
-                            readings[ix]['duration'] = t.text
-                        elif 'start' in t.tag:
-                            readings[ix]['start'] = t.text
-                elif 'value' in data.tag:
-                    readings[ix]['value'] = data.text
+            namespace = iblock.tag[0:iblock.tag.find('}') + 1]
+            readings = {}
+            for ix, block in enumerate(iblock.findall(namespace + 'IntervalReading')):
+                readings[ix] = {}
+                for data in block:
+                    if 'timePeriod' in data.tag:
+                        for t in data:
+                            if 'duration' in t.tag:
+                                readings[ix]['duration'] = t.text
+                            elif 'start' in t.tag:
+                                readings[ix]['start'] = t.text
+                    elif 'value' in data.tag:
+                        readings[ix]['value'] = data.text
 
-        self.readings = readings
-        self.DF = self.DF.from_dict(readings, orient='index')
-        self.DF.start = pd.to_datetime(self.DF.start, unit='s')
+            self.readings = readings
+            self.DF = self.DF.from_dict(readings, orient='index')
+
+        try:
+            self.DF.start = pd.to_datetime(self.DF.start)#, unit='s')
+        except ValueError:
+            # Green-button data is provided as integer value in seconds, so catch this:
+            self.DF.start = pd.to_datetime(self.DF.start, unit='s')
+
         self.DF.value = self.DF.value.astype(float)
         self.DF['duration_hrs'] = (self.DF.start - self.DF.start.shift()).fillna(
-            pd.Timedelta(seconds=0)).dt.total_seconds() / 3600
+            pd.Timedelta(seconds=default_duration_s)).dt.total_seconds() / 3600
 
     def plot_load(self, start=0, end=-1):
 
