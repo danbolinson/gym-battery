@@ -12,6 +12,7 @@ class Battery:
         If affect_state = False, the actual charge of the battery (internal state of Battery class) is not changed.
         Returns: kW deployed (negative means drawing from the bus, and positive means outputing to the bus)
         '''
+        # Check to see if rate would over-deplete or over-charge the battery and reset to remaining capacity if so
         if self.charge - rate * time_period < 0:
             # Instruction would deplete the battery below 0.
             rate = self.charge / time_period
@@ -19,12 +20,16 @@ class Battery:
             # Instruction would over-charge battery.
             rate = -1 * (self.capacity - self.charge) / time_period
 
+        # Validate the rate is allowed
+        if abs(rate) > self.power:
+            raise ValueError("charge/discharge of {} exceeds power!".format(rate))
+
+        # Change the state of charge
         if affect_state:
             self.charge -= rate * time_period
 
-        if abs(rate) > self.power:
-            raise ValueError("charge/discharge of {} exceeds power!".format(rate))
         return rate
 
     def soc(self):
+        ''' Returns the state of charge of the battery as a value between 0-1.'''
         return self.charge / self.capacity
