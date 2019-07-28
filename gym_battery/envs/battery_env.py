@@ -105,6 +105,8 @@ class BatteryEnv(gym.Env):
         self.set_load(fpath)
         self.fit_load_to_space()
 
+        self.terminal_state = np.array([0,0,0,0])
+
     def set_load(self, xml_location):
         '''This sets the load based on the xml GreenButton data, which should be available in the location provided.'''
         self.load = IntervalReading(xml_location)
@@ -147,7 +149,9 @@ class BatteryEnv(gym.Env):
         self.grid_flow.loc[self.step_ix, 'load'] = self.step_row.value
         self.grid_flow.loc[self.step_ix, 'battery_action'] = action_value
         self.grid_flow.loc[self.step_ix, 'state_of_charge'] = self.bus.battery.charge
-        self.grid_flow.loc[self.step_ix, 'state'] = str(self.state)
+        if 'state' not in self.grid_flow.columns:
+            self.grid_flow['state'] = 'future_tuple'
+        self.grid_flow.set_value(self.step_ix, 'state', tuple(self.state))
 
         if self.verbose:
             print("hour: {},  load(state): {}, soc:{}, load(actual): {}, demand(state): {}, battery action: {}"
@@ -184,7 +188,7 @@ class BatteryEnv(gym.Env):
                             (1 if 'month' in self.episode_type else 30)
             reward -= (demand_charge + energy_charge)
             self.state[-1] = demand
-            return (self.state, reward, episode_over, {})
+            return (self.terminal_state, reward, episode_over, {})
 
 
 
