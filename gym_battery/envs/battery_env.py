@@ -83,7 +83,13 @@ class BatteryEnv(gym.Env):
 
         self.verbose = False
 
+        self.seed = None
 
+    def set_seed(self, seed):
+        self.seed = seed
+        self.observation_space.seed(seed)
+        self.action_space.seed(seed)
+        np.random.seed(seed)
 
     def set_standard_system(self):
         '''This method establishes the basic system used for the project, based on the A10S Med Business Large Usage
