@@ -11,6 +11,8 @@ from gym_battery.envs.env_assets.Bus import Bus
 from gym_battery.envs.env_assets.IntervalReading import IntervalReading
 
 import numpy as np
+import pandas as pd
+import datetime
 
 import pkg_resources
 
@@ -54,8 +56,9 @@ class BatteryEnv(gym.Env):
         self.dispatch_penalty = 0.1
 
         # The episode_type, which should be one of the registered episode_types, controls how episodes are generated.
-        self.episode_types = ['first_day', 'first_month', 'all_days', 'all_months', 'count_days', 'count_months']
-        self.episode_type = self.episode_types[-1]
+        self.episode_types = ['first_day', 'first_month', 'all_days', 'all_months', 'count_days', 'count_months',
+                              'stochastic_day']
+        self.episode_type = self.episode_types[0]
 
         # Define the gym action and observation spaces, and the action_mapping,
         # determines what a discrete action means in terms of battery discharge/charge in kW
@@ -132,6 +135,52 @@ class BatteryEnv(gym.Env):
         action_values = (np.arange(num_as) - ((num_as-1)/2))/((num_as-1)/2) * self.bus.battery.power
         self.action_mapping = dict(zip(np.arange(num_as), action_values))
 
+    def _build_random_day_generator(self, basis='count_days', N=30):
+        # set up a dictionary that stores a list of next values for each time step
+        dict_load = {}
+        load_generator = self.load.get_daily_generator()
+
+        for i in range(N):
+            try:
+                DF = next(load_generator)
+            except StopIteration:
+                # Respawn the load generator
+                load_generator = self.load.get_daily_generator()
+                DF = next(load_generator)
+
+            for ix, row in DF.iterrows():
+                dict_load[row.start.time()] = dict_load.get(row.start.time(), []) + [row.value]
+
+        time_scaffold = [t.time() for t in DF.start]
+        assert len(time_scaffold) == 96
+
+        def stochastic_load_generator(dict_load):
+            while True:
+                load_list = []
+                for t in time_scaffold:
+                    options = dict_load[t]
+
+                    load = np.random.choice(options)
+                    trim_load_before = datetime.time(2, 0, 0)
+                    if t <= trim_load_before:
+                        load = min(2800, load)
+
+                    duration = 900
+                    duration_hrs = 0.25
+
+                    load_list.append((t, load, duration, duration_hrs))
+
+                DF_generated = pd.DataFrame(load_list, columns=['start', 'value', 'duration', 'duration_hrs'])
+
+                yield DF_generated
+
+        return stochastic_load_generator(dict_load)
+
+    def set_stochastic_generator(self, type='stochastic_day', N=30):
+        assert type in self.episode_types
+        self.episode_type = type
+        self.DF_gen = self._build_random_day_generator('count_days', N=N)
+
     def step(self, action):
         '''Step takes an action in the environment, resolves the impact of that action, calculates the reward,
         and returns the next state.
@@ -178,10 +227,16 @@ class BatteryEnv(gym.Env):
         episode_over = False
         try:
             self.step_ix, self.step_row = next(self.episode_step_generator)
+            load = self.step_row.value
+            if self.episode_type == 'count_days':
+                if self.step_row.start.hour <= 2:
+                    load = min(2800, self.step_row.value)
+
             self.state = np.array([self.step_row.start.hour,
                                    self.bus.battery.charge,
-                                   self.step_row.value,
+                                   load,
                                    demand])
+
             return (self.state, reward, episode_over, {})
 
         except StopIteration:
@@ -229,7 +284,10 @@ class BatteryEnv(gym.Env):
             self.episode_DF = next(self.DF_gen)
         except StopIteration:
             # If not, then reload the data based on the day/month parameter and whether doing the first or all.
-            if 'day' in self.episode_type:
+            if 'stochastic_day' in self.episode_type:
+                raise AssertionError('The environnment type is set to stochastic_day but the generator is exhausted!'+ \
+                            'try running set_stochastic_generator')
+            elif 'day' in self.episode_type:
                 self.DF_gen = self.load.get_daily_generator()
             elif 'month' in self.episode_type:
                 self.DF_gen = self.load.get_month_generator()
@@ -242,7 +300,7 @@ class BatteryEnv(gym.Env):
             # If the first_ flag is set, we want to go back to get a daily generator each episode, so we empty the
             # episode generator; this forces a StopIteration next reset.
             if 'first' in self.episode_type:
-                self.DF_gen = empty_generator() # This will for recreation of the generator, repeating hte same day/month
+                self.DF_gen = empty_generator()
 
         # If the user has set a count, then we monitor this and empty the generator when needed.
         if 'count' in self.episode_type:
